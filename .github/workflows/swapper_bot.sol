@@ -21,8 +21,8 @@ jobs:
           PK_1: ${{ secrets.KEY_1 }}
           PK_2: ${{ secrets.KEY_2 }}
           PK_3: ${{ secrets.KEY_3 }}
-          TOKEN_A: "0x047d2881b485519c793e0decd4dbd08c2e142b7e" # <-- آدرس توکن اول
-          TOKEN_B: "0x21b26889a98b44f60bc0819fbadc4e89b48d5ceb" # <-- آدرس توکن دوم
+          TOKEN_A: "0x7943e237c7F95DA44E0301572D358911207852Fa" # <-- آدرس توکن اول
+          TOKEN_B: "0x7E955252E15c84f5768B83c41a71F9eba181802F" # <-- آدرس توکن دوم
           RPC_URL: "https://rpc.testnet.chain.robinhood.com/"
         run: |
           forge script script/AutoSwapper.s.sol:AutoSwapperScript \
