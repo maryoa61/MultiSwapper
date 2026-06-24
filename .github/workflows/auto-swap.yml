@@ -3,9 +3,9 @@ name: Robinhood Testnet Auto-Swap Bot
 
 on:
   schedule:
-    # اجرا هر ۳ ساعت به صورت خودکار
+    # اجرای خودکار در ثانیه صفر هر ۳ ساعت یکبار
     - cron: '0 */3 * * *'
-  workflow_dispatch: # امکان اجرای دستی ورک‌فلو از پنل گیت‌هاب
+  workflow_dispatch: # امکان اجرای دستی ورک‌فلو از پنل کاربری گیت‌هاب اکشنز
 
 jobs:
   swap:
@@ -22,26 +22,26 @@ jobs:
         with:
           version: nightly
 
-      # نصب forge-std و دیگر نیازمندی‌ها در اولین اجرا به صورت خودکار
+      # نصب forge-std در صورتی که از قبل نصب نشده باشد
       - name: Install Foundry Dependencies (forge-std)
         run: |
           if [ ! -d "lib/forge-std" ]; then
-            echo "📦 نصب خودکار کتابخانه forge-std..."
+            echo "📦 Installing forge-std library..."
             forge install foundry-rs/forge-std --no-commit
           else
-            echo "✅ کتابخانه forge-std از قبل نصب شده است."
+            echo "✅ forge-std library already installed."
           fi
 
       - name: Compile Solidity Contracts
         run: |
-          echo "🔨 در حال کامپایل و تایید کدهای سالیدیتی..."
+          echo "🔨 Compiling and validating Solidity code..."
           forge build
 
-      # جادوی رندومایز کردن زمان اجرا در گیت‌هاب اکشنز
-      - name: Randomize Timing (ساعات رندوم)
+      # ایجاد خواب تصادفی بین ۱ تا ۶۰ دقیقه برای جلوگیری از پایش و ردیابی تراکنش‌ها
+      - name: Randomize Timing
         run: |
           delay=$((1 + RANDOM % 60))
-          echo "💤 ایجاد خواب تصادفی به مدت $delay دقیقه برای رندومایز ساعت سواپ..."
+          echo "💤 Random sleep for $delay minutes to randomize the swap time..."
           sleep $((delay * 60))
 
       - name: Execute Foundry Swapper Script
