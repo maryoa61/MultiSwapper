@@ -1,0 +1,44 @@
+# .github/workflows/auto-swap.yml
+name: Robinhood Testnet Auto-Swap Bot
+
+on:
+  schedule:
+    # اجرا هر ۳ ساعت به صورت خودکار
+    - cron: '0 */3 * * *'
+  workflow_dispatch: # امکان اجرای دستی ورک‌فلو از پنل گیت‌هاب
+
+jobs:
+  swap:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      # جادوی رندومایز کردن زمان اجرا در گیت‌هاب اکشنز
+      - name: Randomize Timing (ساعات رندوم)
+        run: |
+          delay=$((1 + RANDOM % 60))
+          echo "💤 ایجاد خواب تصادفی به مدت $delay دقیقه برای رندومایز ساعت سواپ..."
+          sleep $((delay * 60))
+
+      - name: Execute Foundry Swapper Script
+        run: |
+          forge script script/AutoSwapper.s.sol:AutoSwapperScript \
+            --rpc-url "${{ secrets.RPC_URL }}" \
+            --broadcast \
+            --slow \
+            -vvvv
+        env:
+          TOKEN_A: ${{ secrets.TOKEN_A }}
+          TOKEN_B: ${{ secrets.TOKEN_B }}
+          KEY_1: ${{ secrets.KEY_1 }}
+          KEY_2: ${{ secrets.KEY_2 }}
+          KEY_3: ${{ secrets.KEY_3 }}
