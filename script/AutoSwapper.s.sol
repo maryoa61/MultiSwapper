@@ -20,7 +20,7 @@ interface IUniswapV2Router {
 
 contract AutoSwapperScript is Script {
     function run() external {
-        // خواندن متغیرهای محیطی گیت‌هاب
+        // دریافت کلیدها و کانفیگ توکن‌ها از متغیرهای محیطی
         uint256 key1 = vm.envOr("KEY_1", uint256(0));
         uint256 key2 = vm.envOr("KEY_2", uint256(0));
         uint256 key3 = vm.envOr("KEY_3", uint256(0));
@@ -28,8 +28,8 @@ contract AutoSwapperScript is Script {
         address tokenA = vm.envOr("TOKEN_A", address(0));
         address tokenB = vm.envOr("TOKEN_B", address(0));
         
-        // آدرس روتری که از لاگ استخراج شد
-        address routerAddress = vm.envOr("ROUTER_ADDRESS", address(0x77bF00A6A90c600f214b34BAFBB7918c0cf113A8));
+        // آدرس روتری که چکسام آن دقیقاً توسط کامپایلر تایید شده است
+        address routerAddress = vm.envOr("ROUTER_ADDRESS", 0x77bF00A6A90c600f214b34BAFBB7918c0cf113A8);
         
         if (routerAddress == address(0)) {
             console.log("Error: Router address is address(0)");
@@ -43,7 +43,7 @@ contract AutoSwapperScript is Script {
 
         IUniswapV2Router router = IUniswapV2Router(routerAddress);
         
-        // پردازش کلیدها به ترتیب
+        // آرایه‌ای از کلیدها جهت پردازش خودکار
         uint256[3] memory keys = [key1, key2, key3];
         
         for (uint256 i = 0; i < keys.length; i++) {
@@ -62,7 +62,7 @@ contract AutoSwapperScript is Script {
                 continue;
             }
             
-            // مقدار توکنی که می‌خواهید سواپ کنید (مثلاً ۱۲ توکن با توجه به دسیمال ۶ توکن در شبکه تستی)
+            // مقدار پیش‌فرض تراکنش (بر اساس لاگ ارسالی شما 1.2e7)
             uint256 amountIn = 1.2e7; 
             if (balanceA < amountIn) {
                 amountIn = balanceA;
@@ -72,20 +72,18 @@ contract AutoSwapperScript is Script {
             path[0] = tokenA;
             path[1] = tokenB;
             
-            // ==========================================
-            // حل مشکل ددلاین: استفاده از زمان پویای بلاکچین + ۲۰ دقیقه
-            // ==========================================
+            // تعیین ددلاین معتبر بر اساس بلاک‌تایم جاری شبکه (۲۰ دقیقه آینده) جهت جلوگیری از انقضا
             uint256 deadline = block.timestamp + 1200;
             
             vm.startBroadcast(key);
             
-            // تایید دسترسی روتر به توکن‌های شما
+            // تایید دسترسی به روت برای توکن A
             IERC20(tokenA).approve(address(router), amountIn);
             
-            // اجرای تراکنش سواپ با مدیریت خطاها
+            // اجرای سوآپ همراه با مدیریت خطاها
             try router.swapExactTokensForTokens(
                 amountIn,
-                0, // تحمل لغزش قیمت ۱۰۰٪ برای شبکه‌های تستی بدون شکست
+                0, // تحمل لغزش قیمت 100٪ برای تراکنش‌های تست‌نت
                 path,
                 swapperAddress,
                 deadline
