@@ -20,7 +20,7 @@ interface IUniswapV2Router {
 
 contract AutoSwapperScript is Script {
     function run() external {
-        // دریافت کلیدها و کانفیگ توکن‌ها از متغیرهای محیطی
+        // Fetch keys and token configuration from environment variables
         uint256 key1 = vm.envOr("KEY_1", uint256(0));
         uint256 key2 = vm.envOr("KEY_2", uint256(0));
         uint256 key3 = vm.envOr("KEY_3", uint256(0));
@@ -28,7 +28,7 @@ contract AutoSwapperScript is Script {
         address tokenA = vm.envOr("TOKEN_A", address(0));
         address tokenB = vm.envOr("TOKEN_B", address(0));
         
-        // آدرس روتری که چکسام آن دقیقاً توسط کامپایلر تایید شده است
+        // Router address from the user's log trace (0x77bF00A6A90c600f214b34BAFBB7918c0cf113A8)
         address routerAddress = vm.envOr("ROUTER_ADDRESS", 0x77bF00A6A90c600f214b34BAFBB7918c0cf113A8);
         
         if (routerAddress == address(0)) {
@@ -43,7 +43,7 @@ contract AutoSwapperScript is Script {
 
         IUniswapV2Router router = IUniswapV2Router(routerAddress);
         
-        // آرایه‌ای از کلیدها جهت پردازش خودکار
+        // Array of keys to process
         uint256[3] memory keys = [key1, key2, key3];
         
         for (uint256 i = 0; i < keys.length; i++) {
@@ -62,7 +62,7 @@ contract AutoSwapperScript is Script {
                 continue;
             }
             
-            // مقدار پیش‌فرض تراکنش (بر اساس لاگ ارسالی شما 1.2e7)
+            // Amount of Token A to swap (e.g. 1.2e7 as shown in the user's log trace)
             uint256 amountIn = 1.2e7; 
             if (balanceA < amountIn) {
                 amountIn = balanceA;
@@ -72,18 +72,22 @@ contract AutoSwapperScript is Script {
             path[0] = tokenA;
             path[1] = tokenB;
             
-            // تعیین ددلاین معتبر بر اساس بلاک‌تایم جاری شبکه (۲۰ دقیقه آینده) جهت جلوگیری از انقضا
+            // ==========================================
+            // CRITICAL RESOLUTION / اصلاح حیاتی ددلاین:
+            // ==========================================
+            // Using '0' as a deadline is always expired and causes EvmError: Revert on-chain.
+            // We use 'block.timestamp + 1200' to set a safe 20-minute deadline from current block.
             uint256 deadline = block.timestamp + 1200;
             
             vm.startBroadcast(key);
             
-            // تایید دسترسی به روت برای توکن A
+            // Approve the Router to spend our Token A
             IERC20(tokenA).approve(address(router), amountIn);
             
-            // اجرای سوآپ همراه با مدیریت خطاها
+            // Execute the swap
             try router.swapExactTokensForTokens(
                 amountIn,
-                0, // تحمل لغزش قیمت 100٪ برای تراکنش‌های تست‌نت
+                0, // slippage tolerance 100% for testnet auto-swaps, or customized
                 path,
                 swapperAddress,
                 deadline
