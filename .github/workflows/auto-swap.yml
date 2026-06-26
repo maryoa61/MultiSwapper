@@ -1,9 +1,8 @@
 name: Robinhood Testnet Auto-Swap Bot
 
 on:
-  workflow_dispatch: # اجرای دستی
+  workflow_dispatch:
   schedule:
-    # زمان‌بندی تصادفی: 4 بار در روز در ساعات متفاوت
     - cron: '17 3 * * *'
     - cron: '42 9 * * *'
     - cron: '08 14 * * *'
@@ -20,7 +19,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Install Foundry Dependencies (forge-std)
-        run: forge install foundry-rs/forge-std --no-commit
+        run: forge install foundry-rs/forge-std
 
       - name: Randomize Timing (تاخیر تصادفی)
         run: |
