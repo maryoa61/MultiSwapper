@@ -1,45 +1,95 @@
-name: Robinhood Testnet Auto-Swap Bot
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
 
-on:
-  workflow_dispatch: # اجرای دستی
-  schedule:
-    # زمان‌بندی تصادفی: 4 بار در روز در ساعات متفاوت
-    - cron: '17 3 * * *'
-    - cron: '42 9 * * *'
-    - cron: '08 14 * * *'
-    - cron: '55 20 * * *'
+import "forge-std/Script.sol";
 
-jobs:
-  swap:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+interface IERC20 {
+    function approve(address spender, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+interface IUniswapV2Router {
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
+}
 
-      - name: Install Foundry Dependencies (forge-std)
-        run: forge install foundry-rs/forge-std --no-commit
+contract AutoSwapperScript is Script {
+    function run() external {
+        uint256 key1 = vm.envOr("KEY_1", uint256(0));
+        uint256 key2 = vm.envOr("KEY_2", uint256(0));
+        uint256 key3 = vm.envOr("KEY_3", uint256(0));
+        
+        address tokenA = vm.envOr("TOKEN_A", address(0));
+        address tokenB = vm.envOr("TOKEN_B", address(0));
+        
+        // استفاده از envAddress به جای envOr برای جلوگیری از خطای checksum
+        address routerAddress = vm.envAddress("ROUTER_ADDRESS");
+        
+        if (routerAddress == address(0)) {
+            console.log("Error: Router address is address(0)");
+            return;
+        }
 
-      - name: Randomize Timing (تاخیر تصادفی)
-        run: |
-          DELAY=$((RANDOM % 1800))
-          echo "Waiting ${DELAY} seconds before swap..."
-          sleep $DELAY
+        if (tokenA == address(0) || tokenB == address(0)) {
+            console.log("Error: TOKEN_A or TOKEN_B is not set in environment");
+            return;
+        }
 
-      - name: Compile Solidity Contracts
-        run: forge build
-
-      - name: Execute Foundry Swapper Script
-        env:
-          MASTER_KEY: ${{ secrets.MASTER_KEY }}
-          TOKEN_A: ${{ secrets.TOKEN_A }}
-          TOKEN_B: ${{ secrets.TOKEN_B }}
-          ROUTER_ADDRESS: ${{ secrets.ROUTER_ADDRESS }}
-          SWAP_AMOUNT: ${{ secrets.SWAP_AMOUNT }}
-        run: |
-          forge script script/AutoSwapper.s.sol:AutoSwapperScript \
-            --rpc-url ${{ secrets.RPC_URL }} \
-            --broadcast \
-            -vvv
+        IUniswapV2Router router = IUniswapV2Router(routerAddress);
+        
+        uint256[3] memory keys = [key1, key2, key3];
+        
+        for (uint256 i = 0; i < keys.length; i++) {
+            uint256 key = keys[i];
+            if (key == 0) continue;
+            
+            address swapperAddress = vm.addr(key);
+            console.log("-----------------------------------------");
+            console.log("Processing swap for address:", swapperAddress);
+            
+            uint256 balanceA = IERC20(tokenA).balanceOf(swapperAddress);
+            console.log("Token A balance:", balanceA);
+            
+            if (balanceA == 0) {
+                console.log("Skip: Zero balance for Token A");
+                continue;
+            }
+            
+            uint256 amountIn = 1.2e7;
+            if (balanceA < amountIn) {
+                amountIn = balanceA;
+            }
+            
+            address[] memory path = new address[](2);
+            path[0] = tokenA;
+            path[1] = tokenB;
+            
+            uint256 deadline = block.timestamp + 1200;
+            
+            vm.startBroadcast(key);
+            
+            IERC20(tokenA).approve(address(router), amountIn);
+            
+            try router.swapExactTokensForTokens(
+                amountIn,
+                0,
+                path,
+                swapperAddress,
+                deadline
+            ) returns (uint256[] memory amounts) {
+                console.log("Swap Succeeded! Tokens received:", amounts[1]);
+            } catch Error(string memory reason) {
+                console.log("Swap Failed with error reason:", reason);
+            } catch {
+                console.log("Swap Failed with direct low-level revert");
+            }
+            
+            vm.stopBroadcast();
+        }
+    }
+}
