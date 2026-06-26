@@ -1,61 +1,45 @@
-# .github/workflows/auto-swap.yml
 name: Robinhood Testnet Auto-Swap Bot
 
 on:
+  workflow_dispatch: # اجرای دستی
   schedule:
-    # اجرا هر ۲ ساعت به صورت خودکار جهت پایداری و زمان‌بندی دقیق‌تر
-    - cron: '0 */2 * * *'
-  push:
-    branches: [ main, master ] # هر تغییر یا کامیت کوچک، ربات را فورا بیدار و فعال می‌کند
-  workflow_dispatch: # امکان اجرای دستی ورک‌فلو از پنل گیت‌هاب
+    # زمان‌بندی تصادفی: 4 بار در روز در ساعات متفاوت
+    - cron: '17 3 * * *'
+    - cron: '42 9 * * *'
+    - cron: '08 14 * * *'
+    - cron: '55 20 * * *'
 
 jobs:
   swap:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
 
-      # نصب forge-std و دیگر نیازمندی‌ها در اولین اجرا به صورت خودکار
       - name: Install Foundry Dependencies (forge-std)
+        run: forge install foundry-rs/forge-std --no-commit
+
+      - name: Randomize Timing (تاخیر تصادفی)
         run: |
-          if [ ! -d "lib/forge-std" ]; then
-            echo "📦 نصب خودکار کتابخانه forge-std..."
-            forge install foundry-rs/forge-std --no-commit
-          else
-            echo "✅ کتابخانه forge-std از قبل نصب شده است."
-          fi
+          DELAY=$((RANDOM % 1800))
+          echo "Waiting ${DELAY} seconds before swap..."
+          sleep $DELAY
 
       - name: Compile Solidity Contracts
-        run: |
-          echo "🔨 در حال کامپایل و تایید کدهای سالیدیتی..."
-          forge build
-
-      # ایجاد تاخیر زمانی کاملاً رندوم روی زنجیره
-      - name: Randomize Timing (ساعات رندوم)
-        run: |
-          delay=$((1 + RANDOM % 60))
-          echo "💤 ایجاد خواب تصادفی به مدت $delay دقیقه برای رندومایز ساعت سواپ..."
-          sleep $((delay * 60))
+        run: forge build
 
       - name: Execute Foundry Swapper Script
-        run: |
-          forge script script/AutoSwapper.s.sol:AutoSwapperScript \
-            --rpc-url "${{ secrets.RPC_URL }}" \
-            --broadcast \
-            --slow \
-            -vvvv
         env:
+          MASTER_KEY: ${{ secrets.MASTER_KEY }}
           TOKEN_A: ${{ secrets.TOKEN_A }}
           TOKEN_B: ${{ secrets.TOKEN_B }}
-          KEY_1: ${{ secrets.KEY_1 }}
-          KEY_2: ${{ secrets.KEY_2 }}
-          KEY_3: ${{ secrets.KEY_3 }}
+          ROUTER_ADDRESS: ${{ secrets.ROUTER_ADDRESS }}
+          SWAP_AMOUNT: ${{ secrets.SWAP_AMOUNT }}
+        run: |
+          forge script script/AutoSwapper.s.sol:AutoSwapperScript \
+            --rpc-url ${{ secrets.RPC_URL }} \
+            --broadcast \
+            -vvv
